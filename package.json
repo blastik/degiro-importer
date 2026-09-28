@@ -1,11 +1,17 @@
 {
   "name": "degiro-importer-addon",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "type": "module",
   "description": "DeGiro account statement importer for Wealthfolio",
   "author": "shuisman",
   "license": "MIT",
-  "keywords": ["wealthfolio", "degiro", "importer", "addon", "finance"],
+  "keywords": [
+    "wealthfolio",
+    "degiro",
+    "importer",
+    "addon",
+    "finance"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/shuisman/degiro-importer.git"
