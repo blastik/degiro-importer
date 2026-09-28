@@ -26,6 +26,7 @@
   },
   "hostDependencies": {
     "@wealthfolio/addon-sdk": "^3.9.0",
+    "@wealthfolio/ui": "^3.9.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

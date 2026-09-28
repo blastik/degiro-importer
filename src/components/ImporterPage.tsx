@@ -6,6 +6,11 @@ import { extractUniqueSymbols, applyMappings } from '../parser/symbols';
 import FileUpload from './FileUpload';
 import ActivityTable from './ActivityTable';
 import SymbolMappingStep from './SymbolMappingStep';
+import {
+  Alert, AlertDescription, AlertTitle,
+  Card, CardContent, CardDescription, CardHeader, CardTitle,
+  Icons, Page, PageContent, PageHeader,
+} from '@wealthfolio/ui';
 import { version } from '../../package.json';
 
 type Stage = 'idle' | 'mapping' | 'review' | 'importing' | 'done';
@@ -164,61 +169,89 @@ export default function ImporterPage({ api }: Props) {
 
   if (stage === 'idle') {
     return (
-      <div className="p-8 max-w-2xl mx-auto flex flex-col gap-8">
-        <header>
-          <h1 className="text-2xl font-bold mb-2">DeGiro Importer</h1>
-          <p className="text-sm text-muted-foreground">
-            Bring your DeGiro history into Wealthfolio. This addon reads DeGiro's{' '}
-            <strong>Account statement</strong> export and turns it into Wealthfolio activities:
-            buys, sells, dividends, deposits, withdrawals, fees and taxes. Nothing is saved until
-            you have reviewed the result.
-          </p>
-        </header>
-
-        <section>
-          <SectionTitle>Your first step</SectionTitle>
-          {error && <ErrorBanner message={error} />}
-          <FileUpload onFile={handleFile} />
-          <p className="text-xs text-muted-foreground mt-2">
-            In DeGiro: Inbox → Account statement → select a date range → Download as CSV.
-            The Transactions export will not work.
-          </p>
-        </section>
-
-        <section>
-          <SectionTitle>How it works</SectionTitle>
-          <ol className="flex flex-col gap-3">
-            {IMPORT_STEPS.map(([title, text], i) => (
-              <li key={title} className="flex gap-3 text-sm">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full border text-xs font-semibold">
-                  {i + 1}
-                </span>
-                <span>
-                  <span className="font-medium">{title}</span>
-                  <span className="text-muted-foreground"> · {text}</span>
-                </span>
-              </li>
-            ))}
-          </ol>
-        </section>
-
-        <section>
-          <SectionTitle>Notes</SectionTitle>
-          <div className="flex flex-col gap-3 text-sm text-muted-foreground">
-            <p>
-              <span className="font-medium text-foreground">About.</span>{' '}
-              DeGiro Importer v{version} is an open-source community addon (MIT licence), not
-              affiliated with DeGiro or flatex. Source code and issue tracker:{' '}
-              <span className="select-all font-mono text-xs text-foreground">{REPO_URL}</span>
+      <Page>
+        <PageHeader
+          heading="DeGiro Importer"
+          text="Import your DeGiro account statement into Wealthfolio"
+          dragRegion={false}
+        />
+        <PageContent>
+          <div className="mx-auto flex max-w-3xl flex-col gap-6">
+            <p className="text-muted-foreground">
+              Bring your DeGiro history into Wealthfolio. This addon reads DeGiro's{' '}
+              <strong className="text-foreground">Account statement</strong> export and turns it
+              into Wealthfolio activities: buys, sells, dividends, deposits, withdrawals, fees and
+              taxes. Nothing is saved until you have reviewed the result.
             </p>
-            <p>
-              <span className="font-medium text-foreground">Time zones.</span>{' '}
-              DeGiro timestamps carry no time zone, so activity times are always read as{' '}
-              <strong>Europe/Amsterdam</strong> local time (CET / CEST).
-            </p>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Your first step</CardTitle>
+                <CardDescription>
+                  In DeGiro: Inbox → Account statement → select a date range → Download as CSV.
+                  The Transactions export will not work.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {error && (
+                  <Alert variant="error" className="mb-4">
+                    <Icons.AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+                <FileUpload onFile={handleFile} />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>How it works</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ol className="flex flex-col gap-4">
+                  {IMPORT_STEPS.map(([title, text], i) => (
+                    <li key={title} className="flex gap-3">
+                      <span className="bg-muted flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-semibold">
+                        {i + 1}
+                      </span>
+                      <div>
+                        <p className="font-medium">{title}</p>
+                        <p className="text-muted-foreground text-sm">{text}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Notes</CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3">
+                <Alert>
+                  <Icons.Info className="h-4 w-4" />
+                  <AlertTitle>About</AlertTitle>
+                  <AlertDescription className="text-muted-foreground">
+                    DeGiro Importer v{version} is an open-source community addon (MIT licence),
+                    not affiliated with DeGiro or flatex. Source code and issue tracker:{' '}
+                    <span className="text-foreground select-all font-mono text-xs">{REPO_URL}</span>
+                  </AlertDescription>
+                </Alert>
+                <Alert>
+                  <Icons.Clock className="h-4 w-4" />
+                  <AlertTitle>Time zones</AlertTitle>
+                  <AlertDescription className="text-muted-foreground">
+                    DeGiro timestamps carry no time zone, so activity times are always read as{' '}
+                    <strong className="text-foreground">Europe/Amsterdam</strong> local time
+                    (CET / CEST).
+                  </AlertDescription>
+                </Alert>
+              </CardContent>
+            </Card>
           </div>
-        </section>
-      </div>
+        </PageContent>
+      </Page>
     );
   }
 
@@ -387,19 +420,11 @@ export default function ImporterPage({ api }: Props) {
 const REPO_URL = 'https://github.com/shuisman/degiro-importer';
 
 const IMPORT_STEPS: [string, string][] = [
-  ['Upload', 'drop your Account statement CSV; it is parsed inside Wealthfolio'],
-  ['Map symbols', 'confirm the ticker for each ISIN; your choices are remembered per account'],
-  ['Review', 'check or edit the parsed activities and choose the destination account'],
-  ['Import', 'activities are created in Wealthfolio; duplicates are detected and skipped'],
+  ['Upload', 'Drop your Account statement CSV. It is parsed inside Wealthfolio.'],
+  ['Map symbols', 'Confirm the ticker for each ISIN. Your choices are remembered per account.'],
+  ['Review', 'Check or edit the parsed activities and choose the destination account.'],
+  ['Import', 'Activities are created in Wealthfolio. Duplicates are detected and skipped.'],
 ];
-
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return (
-    <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-3">
-      {children}
-    </h2>
-  );
-}
 
 function ErrorBanner({ message }: { message: string }) {
   return (

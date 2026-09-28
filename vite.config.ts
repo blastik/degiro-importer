@@ -5,6 +5,7 @@ import react from '@vitejs/plugin-react';
 // specifiers). Must stay in sync with `hostDependencies` in manifest.json.
 const hostProvidedDependencies = [
   '@wealthfolio/addon-sdk',
+  '@wealthfolio/ui',
   'react',
   'react-dom',
   'react-dom/client',
