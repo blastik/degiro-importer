@@ -1,11 +1,35 @@
 {
   "id": "degiro-importer",
   "name": "DeGiro Importer",
-  "version": "1.0.2",
-  "sdkVersion": "3.3.0",
+  "version": "1.1.0",
+  "sdkVersion": "3.9.0",
+  "minWealthfolioVersion": "3.6.2",
   "description": "Import account statements from DeGiro broker. Supports buys, sells, dividends, deposits, withdrawals, fees and taxes.",
   "author": "shuisman",
   "main": "addon.js",
+  "repository": "https://github.com/shuisman/degiro-importer",
+  "license": "MIT",
+  "keywords": ["wealthfolio", "degiro", "importer", "broker", "csv"],
+  "contributes": {
+    "routes": [{ "id": "degiro-importer" }],
+    "links": {
+      "sidebar": [
+        {
+          "id": "degiro-importer",
+          "route": "degiro-importer",
+          "label": "DeGiro Import",
+          "icon": "files",
+          "order": 100
+        }
+      ]
+    }
+  },
+  "hostDependencies": {
+    "@wealthfolio/addon-sdk": "^3.9.0",
+    "@wealthfolio/ui": "^3.9.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
   "permissions": [
     {
       "category": "accounts",

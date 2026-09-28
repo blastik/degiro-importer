@@ -31,12 +31,12 @@ Install in Wealthfolio: Settings → Addons → Install from file → select zip
 
 | File | Purpose |
 |---|---|
-| `src/addon.tsx` | Entry point — `enable(ctx)` registers sidebar + route |
+| `src/addon.tsx` | Entry point — default-exported `enable(ctx)` registers the route component |
+| `manifest.json` | Permissions, `contributes` (route + sidebar link), `hostDependencies` |
 | `src/types.ts` | Re-exports from `@wealthfolio/addon-sdk` — import from here, not the SDK directly |
 | `src/parser/csv.ts` | Raw CSV text → `DeGiroRow[]` |
 | `src/parser/mapper.ts` | `DeGiroRow[]` → `ActivityImport[]` |
 | `src/parser/symbols.ts` | Extract unique ISINs, apply ticker mappings |
-| `src/parser/openfigi.ts` | ISIN → ticker via OpenFIGI API (available but not wired up) |
 | `src/components/ImporterPage.tsx` | Orchestrator: idle → mapping → review → importing → done |
 | `src/components/SymbolMappingStep.tsx` | ISIN lookup + confirm step |
 | `src/components/ActivityTable.tsx` | Editable review table |
@@ -78,12 +78,28 @@ code paths in a future release. Keep using `saveMany` until then.
 - `api.activities.saveImportMapping({ accountId, symbolMappings, fieldMappings: {}, activityMappings: {}, accountMappings: {} })`
 - Saved per account — switching accounts reloads mappings.
 
-### Sidebar / routing
+### Sandbox runtime (Wealthfolio 3.6+, SDK 3.9)
 
-- `ctx.sidebar.addItem({ id, label, icon, route, order })` — `icon` must be a
-  `React.createElement('svg', ...)` element, NOT a string.
-- `ctx.router.add({ path, component })` — route must start with `/addons/`.
-- `manifest.json` uses `"main": "addon.js"` (zip puts files at root, not `dist/`).
+The addon runs in an isolated iframe. Consequences:
+
+- **Permissions** are enforced per call as `<category>:<function>`. Manifest
+  function names are bare (`"getAll"`, not `"accounts.getAll"`), and category
+  ids must match `PERMISSION_CATEGORIES` in the SDK (`market-data`, not
+  `market`). A mismatch throws "Addon '…' is not allowed to call x.y".
+- **Routing**: `contributes.routes` + `contributes.links.sidebar` in the
+  manifest declare the page and sidebar entry; `addon.tsx` registers
+  `ctx.router.add({ id, path, component })` with the **same id**. The host owns
+  the React root. Don't call `createRoot`, and don't use `ctx.sidebar.addItem`.
+- **Sidebar icon** is a curated name string (`AddonIconName`, e.g. `"files"`),
+  not a React element.
+- **React is host-provided**: `vite.config.ts` marks `react`, `react-dom`, and
+  `@wealthfolio/addon-sdk` as ESM `external`. Keep that list in sync with
+  `manifest.hostDependencies`. Never bundle React.
+- No `localStorage` / `sessionStorage` (they throw; use `ctx.api.storage`), and no
+  raw `fetch` (use `ctx.api.network.request` + `network.allowedHosts`).
+- `manifest.json` uses `"main": "addon.js"`: both zips (local `bundle.mjs` and
+  CI `release.yml`) put `manifest.json` and `addon.js` at the zip root.
+- After changing permissions, **reinstall** the addon so the new consent applies.
 
 ---
 
@@ -146,10 +162,10 @@ and activity review.
 **isValidTicker:** `!t.includes(' ') && t.length <= 15` — rejects full product
 names that old auto-confirm code may have saved as tickers.
 
-**OpenFIGI** (`src/parser/openfigi.ts`) is available as a more reliable
-ISIN → ticker resolver (batch POST to `api.openfigi.com/v3/mapping`, free, no
-key needed). Not wired into the UI currently — can be added if the market data
-provider doesn't support ISIN search.
+**OpenFIGI** (batch POST to `api.openfigi.com/v3/mapping`, free, no key) was
+prototyped and removed. If re-added, it must go through `ctx.api.network.request`
+with `network.allowedHosts: ["api.openfigi.com"]`. The community listing then
+shows that data leaves the device.
 
 ---
 

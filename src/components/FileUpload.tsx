@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { Icons } from '@wealthfolio/ui';
 
 interface Props {
   onFile: (content: string) => void;
@@ -61,7 +62,7 @@ export default function FileUpload({ onFile }: Props) {
         }}
       />
 
-      <div className="text-5xl mb-4" aria-hidden>📂</div>
+      <Icons.Upload className="text-muted-foreground mx-auto mb-4 h-10 w-10" aria-hidden />
       <p className="font-semibold text-lg">Drop your DeGiro CSV here</p>
       <p className="text-sm text-muted-foreground mt-1">or click to browse</p>
 

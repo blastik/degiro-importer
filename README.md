@@ -21,6 +21,8 @@ statement CSV into Wealthfolio activities.
 
 ## Installation
 
+Requires **Wealthfolio 3.6.2 or newer**. Use release 1.0.x for older versions.
+
 1. Download the latest `degiro-importer.zip` from
    [Releases](../../releases/latest).
 2. Open Wealthfolio → **Settings → Addons → Install from file**.

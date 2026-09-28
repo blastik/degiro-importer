@@ -1,25 +1,33 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import externalGlobals from 'rollup-plugin-external-globals';
+
+// Packages the Wealthfolio addon sandbox provides at runtime (ESM, bare
+// specifiers). Must stay in sync with `hostDependencies` in manifest.json.
+const hostProvidedDependencies = [
+  '@wealthfolio/addon-sdk',
+  '@wealthfolio/ui',
+  'react',
+  'react-dom',
+  'react-dom/client',
+  'react/jsx-runtime',
+  'react/jsx-dev-runtime',
+];
 
 export default defineConfig({
-  plugins: [
-    react({ jsxRuntime: 'classic' }),
-    externalGlobals({ react: 'React', 'react-dom': 'ReactDOM' }),
-  ],
+  plugins: [react({ jsxRuntime: 'classic' })],
+  define: {
+    'process.env.NODE_ENV': JSON.stringify('production'),
+  },
   build: {
+    target: ['chrome107', 'edge107', 'firefox104', 'safari16'],
     lib: {
       entry: 'src/addon.tsx',
       formats: ['es'],
       fileName: () => 'addon.js', // force .js extension expected by manifest
     },
+    outDir: 'dist',
     rollupOptions: {
-      external: ['react', 'react-dom'],
-      output: {
-        // Bundle all dynamic imports (lazy components) into the single addon.js
-        // file so Wealthfolio only needs to load one script
-        inlineDynamicImports: true,
-      },
+      external: hostProvidedDependencies,
     },
     minify: false,
     sourcemap: true,
