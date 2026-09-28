@@ -52,7 +52,8 @@ the Wealthfolio addon sandbox.
 
 - **Parser**: `src/parser/` — CSV → structured rows → `ActivityImport` objects
 - **UI**: `src/components/` — multi-step import wizard
-- **SDK**: `@wealthfolio/addon-sdk` v3.3.0 — the only runtime dependency
+- **SDK**: `@wealthfolio/addon-sdk` v3.9 — the only runtime dependency (host-provided, not bundled)
+- **Runtime**: Wealthfolio ≥ 3.6.2 sandbox — see CLAUDE.md "Sandbox runtime"
 
 ---
 
@@ -60,13 +61,12 @@ the Wealthfolio addon sandbox.
 
 ```
 src/
-├── addon.tsx               # Entry point — registers sidebar item and route
+├── addon.tsx               # Entry point — registers the route component (sidebar link lives in manifest.json)
 ├── types.ts                # Re-exports from @wealthfolio/addon-sdk
 └── parser/
 │   ├── csv.ts              # Raw CSV → DeGiroRow[]
 │   ├── mapper.ts           # DeGiroRow[] → ActivityImport[]
-│   ├── symbols.ts          # Extract unique ISINs, apply ticker mappings
-│   └── openfigi.ts         # Optional: ISIN → ticker via OpenFIGI API
+│   └── symbols.ts          # Extract unique ISINs, apply ticker mappings
 └── components/
     ├── ImporterPage.tsx     # Orchestrator: idle → mapping → review → done
     ├── SymbolMappingStep.tsx# ISIN auto-search, suggestion chips, Accept/Reject
