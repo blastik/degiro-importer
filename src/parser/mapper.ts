@@ -533,6 +533,25 @@ function buildStandaloneActivity(row: DeGiroRow): ActivityImport | null {
   }
 }
 
+/**
+ * Wealthfolio dedupes on a key of account, type, day, asset, quantity, price,
+ * amount, fee, currency and comment, so genuinely repeated rows (e.g. two
+ * identical deposits on the same day) would collapse into one. Number the
+ * comments of such repeats so each gets its own key.
+ */
+function disambiguateDuplicates(activities: ActivityImport[]): void {
+  const seen = new Map<string, number>();
+  for (const a of activities) {
+    const key = [
+      a.activityType, String(a.date).slice(0, 10), a.symbol, a.quantity,
+      a.unitPrice, a.amount, a.fee, a.currency, a.comment,
+    ].join('|');
+    const n = (seen.get(key) ?? 0) + 1;
+    seen.set(key, n);
+    if (n > 1) a.comment = `${a.comment ?? ''} (${n})`.trim();
+  }
+}
+
 // ─── Main entry point ─────────────────────────────────────────────────────────
 
 /**
@@ -584,6 +603,8 @@ export function mapToActivities(rows: DeGiroRow[]): ActivityImport[] {
   for (const c of conversions) {
     if (!c.foldedIntoTrade) result.push(...fxTransferPair(c));
   }
+
+  disambiguateDuplicates(result);
 
   // Sort chronologically so the review table is easy to scan
   return result.sort((a, b) =>
