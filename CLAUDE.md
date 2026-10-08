@@ -123,6 +123,12 @@ Datum | Tijd | Valutadatum | Product | ISIN | Omschrijving | FX
 
 ## Transaction type mapping
 
+Descriptions follow the DeGiro account's country, not the platform language
+(a Spanish account exports English headers with `Compra`, `Dividendo`,
+`Retención del dividendo`, `Ingreso/Retirada Cambio de Divisa`). `classify()`
+matches NL / EN / ES / DE wording; unmatched money-moving rows are listed on
+the review screen. Dutch names below.
+
 | Dutch description | Wealthfolio type | Notes |
 |---|---|---|
 | `Koop N @ P CCY` | `BUY` | Aggregated by Order Id |
@@ -135,6 +141,11 @@ Datum | Tijd | Valutadatum | Product | ISIN | Omschrijving | FX
 | `Dividend` | `DIVIDEND` | |
 | `Flatex Interest` | `INTEREST` | Can be negative (charged) |
 | `Service-fee` / `Aansluitingskosten` / `B.T.W` | `FEE` | |
+| `Valuta Debitering` + `Valuta Creditering` (no trade in the order) | `TRANSFER_OUT` + `TRANSFER_IN` | AutoFX conversion of income: same-account pair with shared `sourceGroupId` and `metadata.fx` (`rateSource: implied_from_import`) so Wealthfolio treats it as contribution-neutral. DeGiro's rate is also set as `fxRate` on the dividend/tax it converts (next conversion within 7 days) |
+| `Valuta Debitering` + `Valuta Creditering` (same Order Id as a trade) | folded into the trade | `fxRate` = EUR leg / foreign leg, so Wealthfolio books the trade's cash in EUR (BUY/SELL with `fxRate` ≠ account ccy book in account currency). No transfer pair — that would double-count. EUR fees are converted into the trade currency at the same rate |
+| `TRASPASO DE SALIDA: Venta N …` | `TRANSFER_OUT` (security) | Shares moved to another broker, no cash, `flow.is_external: true` |
+| `FUSIÓN: Compra/Venta …` | `BUY` / `SELL` | Merger legs, no Order Id — each row is its own group |
+| `CAMBIO DE PRODUCTO` / `flatex Withdrawal` | skip | Product rename at 0; flatex-side leg of a withdrawal (like `flatex terugstorting`) |
 | Cash Sweep / Overboeking / WIJZIGING ISIN | skip | Internal noise |
 | ISIN `LU1959429272` | skip | Morgan Stanley money market fund |
 | ISIN `NLFLATEXACNT` | skip | Flatex bank account representation |
@@ -169,10 +180,17 @@ shows that data leaves the device.
 
 ---
 
-## Rounding
+## Cash semantics (Wealthfolio)
 
-- `round2()` — amounts and fees (2 decimal places).
-- `round3()` — unit prices (3 decimal places).
+- `amount` is the **final cash** booked: BUY = gross + fee, SELL = gross − fee.
+  The host recomputes `quantity × unitPrice ± fee` and flags a mismatch over
+  half a cent for review, so trade unit prices and converted fees are sent
+  unrounded (`round8`).
+- Negative interest is imported as `FEE` (an `INTEREST` always adds cash).
+- Order Id `-1` (product changes, transfer fees) means no order — `parseCsv`
+  blanks it so those rows don't group together.
+- Reconcile with DeGiro: simulated per-currency cash over a full export
+  should end at the statement's final EUR balance and USD 0.00.
 
 ---
 

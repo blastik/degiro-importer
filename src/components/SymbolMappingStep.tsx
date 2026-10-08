@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import type { Account, HostAPI, SymbolSearchResult } from '../types';
 import type { SymbolEntry } from '../parser/symbols';
 
@@ -198,6 +199,10 @@ function RowEditor({ entry, confirmedTicker, suggestion, api, onTicker, onSugges
   const [results, setResults] = useState<SymbolSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [open, setOpen] = useState(false);
+  // Viewport position of the dropdown; it is portalled to <body> so the
+  // table's overflow containers can't clip it
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number } | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const focusedRef = useRef(false);
   const autoSearched = useRef(false);
@@ -248,6 +253,23 @@ function RowEditor({ entry, confirmedTicker, suggestion, api, onTicker, onSugges
       })
       .catch(() => setSearching(false));
   }
+
+  // Track the input's position while the menu is open; scrolling or resizing
+  // moves the input under a fixed-position menu
+  useEffect(() => {
+    if (!open) return;
+    function place() {
+      const r = inputRef.current?.getBoundingClientRect();
+      if (r) setMenuPos({ top: r.bottom + 4, left: r.left });
+    }
+    place();
+    window.addEventListener('scroll', place, true);
+    window.addEventListener('resize', place);
+    return () => {
+      window.removeEventListener('scroll', place, true);
+      window.removeEventListener('resize', place);
+    };
+  }, [open]);
 
   function handleChange(val: string) {
     setInputVal(val);
@@ -306,9 +328,10 @@ function RowEditor({ entry, confirmedTicker, suggestion, api, onTicker, onSugges
       </td>
       <td className="px-3 py-2 text-xs text-muted-foreground">{entry.currency}</td>
       <td className="px-3 py-2 min-w-[180px]">
-        <div className="relative">
+        <div>
           <div className="flex items-center gap-1.5">
             <input
+              ref={inputRef}
               className="flex-1 min-w-0 rounded border bg-background px-2 py-1 text-xs font-mono focus:outline-none focus:ring-1 focus:ring-ring"
               value={inputVal}
               placeholder="Search ticker…"
@@ -320,8 +343,11 @@ function RowEditor({ entry, confirmedTicker, suggestion, api, onTicker, onSugges
             {searching && <Spinner />}
           </div>
 
-          {open && results.length > 0 && (
-            <div className="absolute z-50 left-0 top-full mt-1 w-80 rounded-lg border border-border bg-background shadow-lg overflow-hidden">
+          {open && menuPos && results.length > 0 && createPortal(
+            <div
+              className="fixed z-50 w-80 max-h-72 overflow-y-auto rounded-lg border border-border bg-background shadow-lg"
+              style={{ top: menuPos.top, left: menuPos.left }}
+            >
               {results.map(r => (
                 <button
                   key={r.symbol}
@@ -334,7 +360,8 @@ function RowEditor({ entry, confirmedTicker, suggestion, api, onTicker, onSugges
                   <span className="text-muted-foreground shrink-0 ml-1">{r.currency ?? r.exchange}</span>
                 </button>
               ))}
-            </div>
+            </div>,
+            document.body,
           )}
         </div>
       </td>
