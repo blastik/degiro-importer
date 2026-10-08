@@ -134,8 +134,8 @@ the review screen. Dutch names below.
 | `Koop N @ P CCY` | `BUY` | Aggregated by Order Id |
 | `Verkoop N @ P CCY` | `SELL` | Aggregated by Order Id |
 | `Transactiekosten` | fee on trade | Merged into parent trade's `fee` field |
-| `Transactiebelasting` (negative) | `TAX` | French FTT — positive = reversal, skip |
-| `Dividendbelasting` | `TAX` | Dividend withholding tax |
+| `Transactiebelasting` (negative) | `tax` on the trade | French FTT folded into the trade (BUY = gross + fee + tax, SELL = gross − fee − tax) when in the trade's currency or settled via its AutoFX; otherwise a standalone `TAX`. Positive = reversal, skip |
+| `Dividendbelasting` | `tax` on the dividend | Paired with the dividend (same ISIN, day, currency): `tax` = withholding, `amount` = gross − tax (net cash; the host derives gross = amount + tax). Unpaired → standalone `TAX` |
 | `flatex Storting` / `iDEAL storting` | `DEPOSIT` | |
 | `Processed Flatex Withdrawal` (negative) | `WITHDRAWAL` | Positive = cancellation, skip |
 | `Dividend` | `DIVIDEND` | |
@@ -160,7 +160,8 @@ and activity review.
 **Architecture:**
 - Parent owns `mappings: Record<string, string>` (confirmed tickers) and
   `suggestions: Record<string, SymbolSearchResult>` (pending, needs user action).
-- Each `RowEditor` auto-searches on mount via `api.market.searchTicker(isin)`.
+- The parent loads the securities already in Wealthfolio (unique `assetSymbol`s from `activities.getAll()`); each `RowEditor` auto-searches via `api.market.searchTicker(isin)` once they are loaded.
+- Existing securities win: if any hit is existing (`isExisting` or in that set) only those are considered for auto-confirm/suggestion. The dropdown lists "In your portfolio" above new results, and an "In portfolio" badge marks them, to avoid duplicate assets.
 - `filterResults()` strips results where `symbol === isin` or symbol contains
   spaces or is longer than 15 chars (those are product names, not tickers).
 - If exactly **one** currency-matching result → auto-confirm silently.

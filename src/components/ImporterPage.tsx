@@ -91,6 +91,7 @@ export default function ImporterPage({ api }: Props) {
           unitPrice: a.unitPrice ?? null,
           amount: a.amount ?? null,
           fee: a.fee ?? null,
+          tax: a.tax ?? null,
           comment: a.comment ?? null,
           // DeGiro's own conversion rate; only meaningful into the account currency
           fxRate: a.fxRate != null && a.fxCurrency === accountCurrency ? a.fxRate : null,
@@ -109,6 +110,14 @@ export default function ImporterPage({ api }: Props) {
       try {
         const saveResult = await api.activities.saveMany({ creates });
         imported = saveResult.created.length;
+        const flagged = saveResult.created.filter(c => c.needsReview || c.status !== 'POSTED');
+        for (const c of flagged) {
+          api.logger.info(
+            `needs review: ${c.activityType} ${c.activityDate} status=${c.status} ` +
+            `qty=${c.quantity} price=${c.unitPrice} amount=${c.amount} fee=${c.fee} ` +
+            `ccy=${c.currency} fx=${c.fxRate} asset=${c.assetId}`,
+          );
+        }
         const byError = saveResult.errors.reduce<Record<string, number>>((acc, e) => {
           const key = e.message ?? 'unknown';
           acc[key] = (acc[key] ?? 0) + 1;

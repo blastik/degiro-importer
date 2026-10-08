@@ -392,8 +392,20 @@ function processOrderGroup(rows: DeGiroRow[], conversions: FxConversion[]): Acti
     }));
   }
 
-  // `amount` is the final cash Wealthfolio books: gross plus fee for a buy,
-  // minus fee for a sell. Unit price is left unrounded so the host's
+  // Transaction tax (French FTT) goes on the trade's `tax` field under the same
+  // currency rules as fees; anything else stays a separate TAX activity.
+  let tax = 0;
+  const looseTax: DeGiroRow[] = [];
+  for (const row of taxRows) {
+    const amt = Math.abs(row.mutatieAmount ?? 0);
+    if (amt === 0) continue;
+    if (row.mutatieCurrency === currency) tax += amt;
+    else if (fxRate && row.mutatieCurrency === settleCcy) tax += amt / fxRate;
+    else looseTax.push(row);
+  }
+
+  // `amount` is the final cash Wealthfolio books: gross plus fee and tax for a
+  // buy, minus them for a sell. Unit price is left unrounded so the host's
   // quantity × price ± fee check reproduces it exactly.
   result.push(makeActivity({
     date,
@@ -405,17 +417,16 @@ function processOrderGroup(rows: DeGiroRow[], conversions: FxConversion[]): Acti
     unitPrice:    round8(totalAmount / totalQty),
     currency,
     fee:          round8(fee),
-    amount:       round8(tradeKind === 'BUY' ? totalAmount + fee : totalAmount - fee),
+    tax:          round8(tax),
+    amount:       round8(tradeKind === 'BUY' ? totalAmount + fee + tax : totalAmount - fee - tax),
     isValid:      !!symbol,
     errors:       symbol ? {} : { symbol: ['No symbol found for this trade'] },
     comment:      rowComment(tradeRows.map(r => r.description).join(' | '), firstTrade.product),
     ...(fxRate ? { fxRate: round8(fxRate), fxCurrency: settleCcy } : {}),
   }));
 
-  // Separate TAX activity for each French FTT charge (only negative = paid)
-  for (const taxRow of taxRows) {
+  for (const taxRow of looseTax) {
     const taxAmt = Math.abs(taxRow.mutatieAmount ?? 0);
-    if (taxAmt === 0) continue;
 
     result.push(makeActivity({
       date:         toIsoDate(taxRow.date, taxRow.time),
@@ -562,7 +573,7 @@ function disambiguateDuplicates(activities: ActivityImport[]): void {
  * - Rows belonging to the same Order Id are aggregated into one activity
  *   (partial fills are summed; weighted-average price is used)
  * - DEGIRO Transactiekosten rows are merged into the parent trade's fee field
- * - Transactiebelasting (French FTT) becomes a separate TAX activity
+ * - Transactiebelasting (French FTT) is folded into its trade's `tax`
  * - AutoFX conversions become linked TRANSFER_OUT/TRANSFER_IN pairs, and their
  *   rate is set as `fxRate` on the trade or income they belong to
  * - Cash sweep rows, money market fund rows, and ISIN renames are discarded
@@ -595,9 +606,45 @@ export function mapToActivities(rows: DeGiroRow[]): ActivityImport[] {
     result.push(...processOrderGroup(group, conversions));
   }
 
+  // Dividend withholding tax rides on its dividend (same ISIN, day, currency)
+  // as the `tax` field instead of becoming a separate TAX activity
+  const taxKey = (r: DeGiroRow) => `${r.isin}|${r.date}|${r.mutatieCurrency || 'EUR'}`;
+  const withholding = new Map<string, DeGiroRow[]>();
+  const dividendKeys = new Set(
+    standalone.filter(r => classify(r) === 'DIVIDEND' && r.isin).map(taxKey),
+  );
+  const rest: DeGiroRow[] = [];
   for (const row of standalone) {
+    if (classify(row) === 'TAX' && row.isin && (row.mutatieAmount ?? 0) < 0 && dividendKeys.has(taxKey(row))) {
+      withholding.set(taxKey(row), [...(withholding.get(taxKey(row)) ?? []), row]);
+    } else {
+      rest.push(row);
+    }
+  }
+
+  for (const row of rest) {
     const activity = processStandaloneRow(row, conversions);
-    if (activity) result.push(activity);
+    if (!activity) continue;
+    if (activity.activityType === 'DIVIDEND' && row.isin) {
+      const taxRows = withholding.get(taxKey(row));
+      const taxRow = taxRows?.shift();
+      if (taxRow) {
+        const tax = Math.abs(taxRow.mutatieAmount ?? 0);
+        // `amount` is the final (net) cash; the host derives gross = amount + tax
+        activity.tax = tax;
+        activity.amount = round2((activity.amount as number) - tax);
+        activity.comment = `${activity.comment ?? ''} + ${taxRow.description}`.trim();
+      }
+    }
+    result.push(activity);
+  }
+
+  // Withholding rows with no dividend left to attach to stay standalone TAX
+  for (const rows of withholding.values()) {
+    for (const row of rows) {
+      const activity = processStandaloneRow(row, conversions);
+      if (activity) result.push(activity);
+    }
   }
 
   for (const c of conversions) {
